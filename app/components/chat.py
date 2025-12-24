@@ -5,10 +5,9 @@ Provides a conversational interface for querying slide content.
 """
 
 import streamlit as st
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from ..services.query_engine import QueryEngine
-from ..services.embeddings import EmbeddingsService
 from ..utils.translations import get_text
 
 
@@ -16,7 +15,6 @@ def initialize_chat_state():
     """Initialize chat-related session state."""
     if 'messages' not in st.session_state:
         st.session_state.messages = []
-
     if 'query_engine' not in st.session_state:
         st.session_state.query_engine = None
 
@@ -36,27 +34,26 @@ def render_chat_interface(lang: str = 'en'):
         try:
             st.session_state.query_engine = QueryEngine()
         except Exception as e:
-            st.warning(f"Note: Running without AI features. {str(e)}")
+            st.warning(f"Running without AI features: {str(e)}")
             st.session_state.query_engine = QueryEngine()
 
-    # Check for pending quick action query
+    # Check for pending query
     pending_query = st.session_state.pop('pending_query', None)
-
-    # Avatar settings (using simple emojis that Streamlit supports)
-    user_avatar = "👨"
-    assistant_avatar = "🤖"
 
     # Display chat history
     for message in st.session_state.messages:
-        avatar = user_avatar if message["role"] == "user" else assistant_avatar
-        with st.chat_message(message["role"], avatar=avatar):
+        with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
             # Show source slides for assistant messages
             if message["role"] == "assistant" and message.get("slides"):
                 render_source_slides(message["slides"], lang)
 
-    # Chat input or pending query
+    # Show suggestion chips if no messages yet
+    if not st.session_state.messages:
+        render_suggestion_chips(lang)
+
+    # Chat input
     prompt = st.chat_input(t('chat_placeholder'))
 
     # Use pending query if no direct input
@@ -67,11 +64,11 @@ def render_chat_interface(lang: str = 'en'):
         # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
 
-        with st.chat_message("user", avatar=user_avatar):
+        with st.chat_message("user"):
             st.markdown(prompt)
 
         # Generate response
-        with st.chat_message("assistant", avatar=assistant_avatar):
+        with st.chat_message("assistant"):
             with st.spinner(t('chat_thinking')):
                 try:
                     result = st.session_state.query_engine.chat(
@@ -101,6 +98,26 @@ def render_chat_interface(lang: str = 'en'):
                     })
 
 
+def render_suggestion_chips(lang: str = 'en'):
+    """Render suggestion chips above the chat input."""
+    t = lambda key: get_text(key, lang)
+
+    suggestions = [
+        t('action_summarize_query'),
+        t('action_key_points_query'),
+        t('action_data_charts_query'),
+    ]
+
+    cols = st.columns(len(suggestions))
+    for i, suggestion in enumerate(suggestions):
+        with cols[i]:
+            # Truncate long suggestions
+            display_text = suggestion[:40] + "..." if len(suggestion) > 40 else suggestion
+            if st.button(display_text, key=f"suggestion_{i}", use_container_width=True):
+                st.session_state.pending_query = suggestion
+                st.rerun()
+
+
 def render_source_slides(slides: List[Dict[str, Any]], lang: str = 'en'):
     """Render the source slides used to generate a response."""
     t = lambda key: get_text(key, lang)
@@ -127,9 +144,7 @@ def render_source_slides(slides: List[Dict[str, Any]], lang: str = 'en'):
                 <div class="slide-card">
                     <span class="slide-number">{t('slide')} {slide_num}</span>
                     <div class="slide-title">{title}</div>
-                    <div class="slide-badges">
-                        <span class="badge">{t('relevance')}: {relevance}</span>
-                    </div>
+                    <span class="badge">{t('relevance')}: {relevance}</span>
                 </div>
             """, unsafe_allow_html=True)
 
@@ -140,41 +155,7 @@ def render_source_slides(slides: List[Dict[str, Any]], lang: str = 'en'):
             st.caption(content)
 
 
-def render_quick_actions(lang: str = 'en'):
-    """Render quick action buttons for common queries."""
-    t = lambda key: get_text(key, lang)
-
-    st.markdown(f"### {t('quick_actions')}")
-
-    # Vertical layout for better text display
-    if st.button(f"📋  {t('action_summarize')}", use_container_width=True, key="qa_summarize"):
-        add_user_query(t('action_summarize_query'))
-
-    if st.button(f"🎯  {t('action_key_points')}", use_container_width=True, key="qa_keypoints"):
-        add_user_query(t('action_key_points_query'))
-
-    if st.button(f"📊  {t('action_data_charts')}", use_container_width=True, key="qa_charts"):
-        add_user_query(t('action_data_charts_query'))
-
-
 def add_user_query(query: str):
-    """Programmatically add a user query via quick actions."""
+    """Programmatically add a user query."""
     st.session_state.pending_query = query
     st.rerun()
-
-
-def clear_chat():
-    """Clear chat history."""
-    st.session_state.messages = []
-
-
-def render_chat_controls(lang: str = 'en'):
-    """Render chat control buttons."""
-    t = lambda key: get_text(key, lang)
-
-    col1, col2 = st.columns([1, 4])
-
-    with col1:
-        if st.button(f"🗑️ {t('clear_chat')}", type="secondary"):
-            clear_chat()
-            st.rerun()

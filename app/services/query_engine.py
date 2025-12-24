@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional
 import anthropic
 
 from .embeddings import EmbeddingsService
+from ..utils.helpers import get_api_key
 
 
 class QueryEngine:
@@ -23,7 +24,7 @@ class QueryEngine:
         api_key: Optional[str] = None
     ):
         self.embeddings = embeddings_service or EmbeddingsService()
-        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        self.api_key = api_key or get_api_key()
 
         if self.api_key:
             self.client = anthropic.Anthropic(api_key=self.api_key)

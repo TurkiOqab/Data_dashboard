@@ -12,10 +12,10 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.components.upload import render_upload_section, render_file_info, render_slide_browser
-from app.components.chat import render_chat_interface, render_quick_actions, render_chat_controls, add_user_query
+from app.components.upload import render_upload_section, render_file_info
+from app.components.chat import render_chat_interface
 from app.utils.helpers import load_environment
-from app.utils.translations import get_text, TRANSLATIONS
+from app.utils.translations import get_text
 from app.services.query_engine import QueryEngine
 
 # Load environment variables
@@ -26,646 +26,431 @@ st.set_page_config(
     page_title="Data Dashboard | لوحة البيانات",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 
-def get_custom_css(is_dark: bool, is_rtl: bool) -> str:
-    """Generate custom CSS based on theme and direction."""
+def get_chatgpt_css(is_dark: bool, is_rtl: bool) -> str:
+    """Generate ChatGPT-inspired CSS."""
 
     direction = "rtl" if is_rtl else "ltr"
     text_align = "right" if is_rtl else "left"
-    opposite_align = "left" if is_rtl else "right"
 
-    # Refined color palette
     if is_dark:
         colors = {
-            'bg_primary': '#0c1220',
-            'bg_secondary': '#151d2e',
-            'bg_card': '#1a2438',
-            'bg_card_hover': '#222f47',
-            'bg_elevated': '#1e293b',
-            'text_primary': '#f8fafc',
-            'text_secondary': '#a1b4c7',
-            'text_muted': '#6b7f94',
-            'accent': '#e5a84b',
-            'accent_hover': '#f0bc6a',
-            'accent_subtle': 'rgba(229, 168, 75, 0.12)',
-            'accent_glow': 'rgba(229, 168, 75, 0.25)',
-            'border': '#2d3f56',
-            'border_light': '#384a63',
-            'success': '#34d399',
-            'error': '#f87171',
-            'info': '#60a5fa',
-            'shadow_color': 'rgba(0, 0, 0, 0.4)',
+            'bg_main': '#212121',
+            'bg_sidebar': '#171717',
+            'bg_input': '#2f2f2f',
+            'bg_user_msg': '#2f2f2f',
+            'bg_assistant_msg': 'transparent',
+            'bg_hover': '#3a3a3a',
+            'text_primary': '#ececec',
+            'text_secondary': '#b4b4b4',
+            'text_muted': '#8e8e8e',
+            'border': '#3a3a3a',
+            'accent': '#d4a853',
+            'accent_soft': 'rgba(212, 168, 83, 0.15)',
         }
     else:
         colors = {
-            'bg_primary': '#f5f7fa',
-            'bg_secondary': '#ffffff',
-            'bg_card': '#ffffff',
-            'bg_card_hover': '#f8f9fb',
-            'bg_elevated': '#ffffff',
-            'text_primary': '#1a202c',
-            'text_secondary': '#4a5568',
-            'text_muted': '#718096',
-            'accent': '#c9940a',
-            'accent_hover': '#a67c08',
-            'accent_subtle': 'rgba(201, 148, 10, 0.08)',
-            'accent_glow': 'rgba(201, 148, 10, 0.15)',
-            'border': '#e2e8f0',
-            'border_light': '#edf2f7',
-            'success': '#10b981',
-            'error': '#ef4444',
-            'info': '#3b82f6',
-            'shadow_color': 'rgba(0, 0, 0, 0.08)',
+            'bg_main': '#ffffff',
+            'bg_sidebar': '#f9f9f9',
+            'bg_input': '#f4f4f4',
+            'bg_user_msg': '#f7f7f8',
+            'bg_assistant_msg': '#ffffff',
+            'bg_hover': '#ececec',
+            'text_primary': '#0d0d0d',
+            'text_secondary': '#374151',
+            'text_muted': '#6b7280',
+            'border': '#e5e5e5',
+            'accent': '#b8860b',
+            'accent_soft': 'rgba(184, 134, 11, 0.1)',
         }
 
     return f"""
     <style>
         /* ============================================
-           FONT IMPORTS
+           FONTS
            ============================================ */
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Söhne:wght@400;500;600&family=Noto+Kufi+Arabic:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
         /* ============================================
            CSS VARIABLES
            ============================================ */
         :root {{
-            --bg-primary: {colors['bg_primary']};
-            --bg-secondary: {colors['bg_secondary']};
-            --bg-card: {colors['bg_card']};
-            --bg-card-hover: {colors['bg_card_hover']};
-            --bg-elevated: {colors['bg_elevated']};
+            --bg-main: {colors['bg_main']};
+            --bg-sidebar: {colors['bg_sidebar']};
+            --bg-input: {colors['bg_input']};
+            --bg-user: {colors['bg_user_msg']};
+            --bg-assistant: {colors['bg_assistant_msg']};
+            --bg-hover: {colors['bg_hover']};
             --text-primary: {colors['text_primary']};
             --text-secondary: {colors['text_secondary']};
             --text-muted: {colors['text_muted']};
-            --accent: {colors['accent']};
-            --accent-hover: {colors['accent_hover']};
-            --accent-subtle: {colors['accent_subtle']};
-            --accent-glow: {colors['accent_glow']};
             --border: {colors['border']};
-            --border-light: {colors['border_light']};
-            --success: {colors['success']};
-            --error: {colors['error']};
-            --info: {colors['info']};
-            --shadow-color: {colors['shadow_color']};
-
-            --font-display: 'Plus Jakarta Sans', 'Noto Kufi Arabic', system-ui, sans-serif;
-            --font-body: {"'Noto Kufi Arabic', 'Plus Jakarta Sans'" if is_rtl else "'Plus Jakarta Sans', 'Noto Kufi Arabic'"}, system-ui, sans-serif;
-
-            --radius-xs: 6px;
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 20px;
-            --radius-2xl: 28px;
-
-            --shadow-sm: 0 1px 3px var(--shadow-color);
-            --shadow-md: 0 4px 16px var(--shadow-color);
-            --shadow-lg: 0 12px 40px var(--shadow-color);
-            --shadow-glow: 0 0 30px var(--accent-glow);
-
-            --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-            --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-            --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+            --accent: {colors['accent']};
+            --accent-soft: {colors['accent_soft']};
+            --font-main: {"'Noto Kufi Arabic', " if is_rtl else ""}'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --chat-width: 768px;
         }}
 
         /* ============================================
-           GLOBAL RESET & BASE STYLES
+           GLOBAL RESET
            ============================================ */
         .stApp {{
-            background: var(--bg-primary) !important;
+            background: var(--bg-main) !important;
         }}
 
-        .stApp > header {{
-            background: transparent !important;
-        }}
-
-        /* Hide Streamlit branding */
-        #MainMenu, footer, header[data-testid="stHeader"] {{
-            visibility: hidden !important;
-            height: 0 !important;
-        }}
-
-        .main .block-container {{
-            padding: 1.5rem 2.5rem 3rem !important;
-            max-width: 1440px;
-        }}
-
-        /* ============================================
-           TYPOGRAPHY
-           ============================================ */
-        html, body, [class*="css"] {{
-            font-family: var(--font-body) !important;
-            direction: {direction};
-        }}
-
-        h1, h2, h3, h4, h5, h6 {{
-            font-family: var(--font-display) !important;
-            color: var(--text-primary) !important;
-            font-weight: 600 !important;
-            letter-spacing: -0.01em;
-            direction: {direction};
-            text-align: {text_align};
-        }}
-
-        p, span, div, label, li {{
-            font-family: var(--font-body) !important;
-            color: var(--text-secondary);
-            direction: {direction};
-            text-align: {text_align};
-        }}
-
-        /* ============================================
-           COMPLETELY HIDE ALL BROKEN MATERIAL ICONS
-           ============================================ */
-
-        /* Nuclear option: Hide ALL elements containing material icon text */
+        /* Hide all Streamlit chrome */
+        #MainMenu, footer, header[data-testid="stHeader"],
         [data-testid="stSidebarCollapseButton"],
         [data-testid="collapsedControl"],
-        button[kind="headerNoPadding"],
         .stDeployButton {{
             display: none !important;
         }}
 
-        /* Hide icon fonts that render as text */
-        span[class*="material"],
-        i[class*="material"],
-        .material-icons,
-        .material-symbols-outlined,
-        .material-symbols-rounded {{
-            font-size: 0 !important;
-            visibility: hidden !important;
+        html, body, [class*="css"] {{
+            font-family: var(--font-main) !important;
+            direction: {direction};
         }}
 
-        /* Fix any stray icon text in buttons */
-        button span[data-testid] {{
-            font-family: var(--font-body) !important;
+        /* ============================================
+           MAIN CONTAINER - Centered like ChatGPT
+           ============================================ */
+        .main .block-container {{
+            max-width: var(--chat-width) !important;
+            padding: 0 1rem 100px 1rem !important;
+            margin: 0 auto !important;
         }}
 
         /* ============================================
            SIDEBAR
            ============================================ */
         section[data-testid="stSidebar"] {{
-            background: var(--bg-secondary) !important;
-            border-{opposite_align}: 1px solid var(--border) !important;
-            width: 320px !important;
+            background: var(--bg-sidebar) !important;
+            border-{"left" if is_rtl else "right"}: 1px solid var(--border) !important;
+            width: 260px !important;
         }}
 
         section[data-testid="stSidebar"] > div {{
-            padding: 1.5rem 1.25rem !important;
+            padding: 1rem !important;
             direction: {direction};
         }}
 
-        section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {{
-            direction: {direction};
-            text-align: {text_align};
+        section[data-testid="stSidebar"] .stButton > button {{
+            width: 100%;
+            justify-content: flex-start;
+            background: transparent !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            color: var(--text-secondary) !important;
+            font-size: 0.875rem !important;
+            padding: 0.75rem 1rem !important;
+            transition: background 0.15s ease !important;
         }}
 
-        section[data-testid="stSidebar"] h1,
-        section[data-testid="stSidebar"] h2,
-        section[data-testid="stSidebar"] h3 {{
-            font-size: 0.95rem !important;
-            font-weight: 600 !important;
-            color: var(--text-primary) !important;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 1rem !important;
-        }}
-
-        /* ============================================
-           CUSTOM HEADER
-           ============================================ */
-        .dashboard-header {{
-            background: linear-gradient(145deg, var(--bg-card) 0%, var(--bg-elevated) 100%);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-2xl);
-            padding: 2rem 2.5rem;
-            margin-bottom: 2rem;
-            position: relative;
-            overflow: hidden;
-            box-shadow: var(--shadow-md);
-        }}
-
-        .dashboard-header::before {{
-            content: '';
-            position: absolute;
-            top: -50%;
-            {opposite_align}: -20%;
-            width: 60%;
-            height: 200%;
-            background: radial-gradient(ellipse, var(--accent-glow) 0%, transparent 70%);
-            opacity: 0.5;
-            pointer-events: none;
-        }}
-
-        .dashboard-header::after {{
-            content: '';
-            position: absolute;
-            inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0L40 20L20 40L0 20L20 0z' fill='none' stroke='%23{"e5a84b" if is_dark else "c9940a"}' stroke-width='0.3' opacity='0.15'/%3E%3C/svg%3E");
-            background-size: 24px 24px;
-            opacity: 0.6;
-            pointer-events: none;
-        }}
-
-        .header-content {{
-            position: relative;
-            z-index: 2;
-            display: flex;
-            align-items: center;
-            gap: 1.25rem;
-            flex-direction: {"row-reverse" if is_rtl else "row"};
-        }}
-
-        .header-icon {{
-            width: 56px;
-            height: 56px;
-            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
-            border-radius: var(--radius-lg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.75rem;
-            box-shadow: var(--shadow-md), var(--shadow-glow);
-            flex-shrink: 0;
-        }}
-
-        .header-text {{
-            flex: 1;
-        }}
-
-        .header-title {{
-            font-size: 2rem !important;
-            font-weight: 700 !important;
-            color: var(--text-primary) !important;
-            margin: 0 0 0.35rem 0 !important;
-            line-height: 1.2;
-        }}
-
-        .header-subtitle {{
-            font-size: 1rem !important;
-            color: var(--text-muted) !important;
-            margin: 0 !important;
-            font-weight: 400;
+        section[data-testid="stSidebar"] .stButton > button:hover {{
+            background: var(--bg-hover) !important;
         }}
 
         /* ============================================
-           CARDS
+           HEADER - Minimal like ChatGPT
            ============================================ */
-        .card {{
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-xl);
-            padding: 1.5rem;
-            transition: all var(--transition-base);
-            position: relative;
-            overflow: hidden;
+        .chat-header {{
+            text-align: center;
+            padding: 2rem 1rem 1rem;
         }}
 
-        .card::before {{
-            content: '';
-            position: absolute;
-            top: 0;
-            {text_align}: 0;
-            width: 4px;
-            height: 100%;
-            background: var(--accent);
-            opacity: 0;
-            transition: opacity var(--transition-base);
-        }}
-
-        .card:hover {{
-            background: var(--bg-card-hover);
-            border-color: var(--border-light);
-            box-shadow: var(--shadow-md);
-            transform: translateY(-2px);
-        }}
-
-        .card:hover::before {{
-            opacity: 1;
-        }}
-
-        .card-title {{
-            font-size: 1.05rem !important;
-            font-weight: 600 !important;
-            color: var(--text-primary) !important;
-            margin-bottom: 0.6rem !important;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            flex-direction: {"row-reverse" if is_rtl else "row"};
-        }}
-
-        .card-title .step-number {{
-            width: 28px;
-            height: 28px;
+        .chat-header-icon {{
+            width: 48px;
+            height: 48px;
             background: var(--accent);
             border-radius: 50%;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.8rem;
-            color: {"#1a202c" if not is_dark else "#1a202c"};
-            font-weight: 700;
-            flex-shrink: 0;
+            font-size: 1.5rem;
+            margin-bottom: 0.75rem;
         }}
 
-        .card-description {{
-            color: var(--text-muted) !important;
-            font-size: 0.9rem;
-            line-height: 1.6;
-            margin: 0;
-        }}
-
-        /* ============================================
-           BUTTONS
-           ============================================ */
-        .stButton > button {{
-            background: var(--bg-card) !important;
-            color: var(--text-primary) !important;
-            border: 1px solid var(--border) !important;
-            border-radius: var(--radius-md) !important;
-            padding: 0.65rem 1.25rem !important;
-            font-weight: 500 !important;
-            font-family: var(--font-body) !important;
-            font-size: 0.9rem !important;
-            transition: all var(--transition-fast) !important;
-            direction: {direction};
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-        }}
-
-        .stButton > button:hover {{
-            background: var(--accent) !important;
-            color: {"#1a202c" if not is_dark else "#1a202c"} !important;
-            border-color: var(--accent) !important;
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-sm);
-        }}
-
-        .stButton > button:active {{
-            transform: translateY(0);
-        }}
-
-        /* Primary buttons */
-        .stButton > button[kind="primary"],
-        .stButton > button[data-testid="baseButton-primary"] {{
-            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%) !important;
-            color: {"#1a202c" if not is_dark else "#1a202c"} !important;
-            border: none !important;
+        .chat-header-title {{
+            font-size: 1.25rem !important;
             font-weight: 600 !important;
-            box-shadow: var(--shadow-sm);
+            color: var(--text-primary) !important;
+            margin: 0 !important;
         }}
 
-        .stButton > button[kind="primary"]:hover,
-        .stButton > button[data-testid="baseButton-primary"]:hover {{
-            box-shadow: var(--shadow-md), var(--shadow-glow);
+        .chat-header-subtitle {{
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
         }}
 
         /* ============================================
-           CHAT INTERFACE
+           WELCOME STATE
+           ============================================ */
+        .welcome-container {{
+            text-align: center;
+            padding: 3rem 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }}
+
+        .welcome-icon {{
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }}
+
+        .welcome-title {{
+            font-size: 1.5rem !important;
+            font-weight: 600 !important;
+            color: var(--text-primary) !important;
+            margin-bottom: 0.5rem !important;
+        }}
+
+        .welcome-subtitle {{
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin-bottom: 2rem;
+        }}
+
+        .quick-actions {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }}
+
+        .quick-action-btn {{
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 1.5rem;
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: var(--font-main);
+        }}
+
+        .quick-action-btn:hover {{
+            background: var(--bg-hover);
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }}
+
+        /* ============================================
+           CHAT MESSAGES - ChatGPT Style
            ============================================ */
         [data-testid="stChatMessage"] {{
-            background: var(--bg-card) !important;
-            border: 1px solid var(--border) !important;
-            border-radius: var(--radius-lg) !important;
-            padding: 1rem 1.25rem !important;
-            margin-bottom: 0.75rem !important;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            padding: 1.5rem 0 !important;
+            margin: 0 !important;
+            max-width: 100% !important;
             direction: {direction};
-            box-shadow: var(--shadow-sm);
         }}
 
-        /* User messages */
-        [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {{
-            background: var(--accent-subtle) !important;
-            border-color: var(--accent) !important;
-            border-{text_align}-width: 3px !important;
+        /* Alternating backgrounds */
+        [data-testid="stChatMessage"]:nth-child(odd) {{
+            background: var(--bg-user) !important;
+            margin: 0 -1rem !important;
+            padding: 1.5rem 1rem !important;
         }}
 
-        /* Chat input */
+        [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] {{
+            color: var(--text-primary) !important;
+        }}
+
+        [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] p {{
+            color: var(--text-primary) !important;
+            line-height: 1.6;
+            font-size: 1rem;
+        }}
+
+        /* Avatar styling */
+        [data-testid="stChatMessage"] [data-testid*="chatAvatar"] {{
+            width: 28px !important;
+            height: 28px !important;
+            border-radius: 4px !important;
+        }}
+
+        /* ============================================
+           CHAT INPUT - Fixed at bottom like ChatGPT
+           ============================================ */
+        [data-testid="stChatInput"] {{
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 100% !important;
+            max-width: var(--chat-width) !important;
+            padding: 1rem !important;
+            background: linear-gradient(to top, var(--bg-main) 85%, transparent) !important;
+            z-index: 100 !important;
+        }}
+
         [data-testid="stChatInput"] > div {{
-            background: var(--bg-card) !important;
-            border: 2px solid var(--border) !important;
-            border-radius: var(--radius-lg) !important;
-            transition: all var(--transition-fast);
+            background: var(--bg-input) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 1.5rem !important;
+            padding: 0.25rem !important;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08) !important;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
         }}
 
         [data-testid="stChatInput"] > div:focus-within {{
             border-color: var(--accent) !important;
-            box-shadow: 0 0 0 4px var(--accent-subtle) !important;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.12) !important;
         }}
 
         [data-testid="stChatInput"] textarea {{
-            font-family: var(--font-body) !important;
+            font-family: var(--font-main) !important;
+            font-size: 1rem !important;
+            color: var(--text-primary) !important;
             direction: {direction} !important;
             text-align: {text_align} !important;
-            color: var(--text-primary) !important;
+            padding: 0.75rem 1rem !important;
+            background: transparent !important;
+            border: none !important;
         }}
 
         [data-testid="stChatInput"] textarea::placeholder {{
             color: var(--text-muted) !important;
         }}
 
-        /* Chat input send button */
         [data-testid="stChatInput"] button {{
             background: var(--accent) !important;
             border: none !important;
-            border-radius: var(--radius-sm) !important;
+            border-radius: 50% !important;
+            width: 32px !important;
+            height: 32px !important;
+            margin: 0.25rem !important;
+        }}
+
+        [data-testid="stChatInput"] button:disabled {{
+            background: var(--text-muted) !important;
+            opacity: 0.5 !important;
         }}
 
         [data-testid="stChatInput"] button svg {{
-            fill: {"#1a202c" if not is_dark else "#1a202c"} !important;
+            fill: white !important;
+            width: 16px !important;
+            height: 16px !important;
+        }}
+
+        /* ============================================
+           SUGGESTION CHIPS (above input)
+           ============================================ */
+        .suggestion-chips {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            padding: 0.75rem 0;
+            margin-bottom: 0.5rem;
+        }}
+
+        .suggestion-chip {{
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: var(--font-main);
+            white-space: nowrap;
+        }}
+
+        .suggestion-chip:hover {{
+            background: var(--bg-hover);
+            border-color: var(--accent);
         }}
 
         /* ============================================
            FILE UPLOADER
            ============================================ */
-        [data-testid="stFileUploader"] {{
-            direction: {direction};
-        }}
-
         [data-testid="stFileUploader"] > div:first-child {{
-            background: var(--bg-card) !important;
+            background: var(--bg-input) !important;
             border: 2px dashed var(--border) !important;
-            border-radius: var(--radius-lg) !important;
+            border-radius: 12px !important;
             padding: 1.5rem !important;
-            transition: all var(--transition-base);
-            text-align: center;
+            transition: all 0.2s ease;
         }}
 
         [data-testid="stFileUploader"] > div:first-child:hover {{
             border-color: var(--accent) !important;
-            background: var(--accent-subtle) !important;
+            background: var(--accent-soft) !important;
         }}
 
-        [data-testid="stFileUploader"] label {{
-            color: var(--text-secondary) !important;
-            font-size: 0.9rem !important;
-        }}
-
+        [data-testid="stFileUploader"] label,
         [data-testid="stFileUploader"] small {{
             color: var(--text-muted) !important;
         }}
 
         /* ============================================
-           INPUTS & FORM ELEMENTS
-           ============================================ */
-        .stTextInput > div > div > input,
-        .stSelectbox > div > div,
-        .stTextArea textarea {{
-            background: var(--bg-card) !important;
-            border: 1px solid var(--border) !important;
-            border-radius: var(--radius-md) !important;
-            color: var(--text-primary) !important;
-            font-family: var(--font-body) !important;
-            direction: {direction};
-            text-align: {text_align};
-            padding: 0.65rem 0.9rem !important;
-            transition: all var(--transition-fast);
-        }}
-
-        .stTextInput > div > div > input:focus,
-        .stSelectbox > div > div:focus-within,
-        .stTextArea textarea:focus {{
-            border-color: var(--accent) !important;
-            box-shadow: 0 0 0 3px var(--accent-subtle) !important;
-            outline: none !important;
-        }}
-
-        .stTextInput label,
-        .stSelectbox label,
-        .stTextArea label {{
-            color: var(--text-secondary) !important;
-            font-weight: 500 !important;
-            font-size: 0.85rem !important;
-            margin-bottom: 0.4rem !important;
-        }}
-
-        /* ============================================
-           EXPANDER
+           EXPANDER (for sources)
            ============================================ */
         [data-testid="stExpander"] {{
-            background: var(--bg-card) !important;
+            background: var(--bg-input) !important;
             border: 1px solid var(--border) !important;
-            border-radius: var(--radius-md) !important;
-            overflow: hidden;
+            border-radius: 8px !important;
+            margin-top: 0.75rem !important;
         }}
 
         [data-testid="stExpander"] summary {{
-            padding: 0.9rem 1rem !important;
-            font-weight: 500 !important;
-            color: var(--text-primary) !important;
-            direction: {direction};
+            color: var(--text-secondary) !important;
+            font-size: 0.875rem !important;
+            padding: 0.75rem 1rem !important;
         }}
 
         [data-testid="stExpander"] summary:hover {{
-            background: var(--bg-card-hover) !important;
-        }}
-
-        [data-testid="stExpander"] [data-testid="stExpanderDetails"] {{
-            padding: 0 1rem 1rem !important;
-            direction: {direction};
+            color: var(--text-primary) !important;
         }}
 
         /* ============================================
-           ALERTS & NOTIFICATIONS
+           BUTTONS
            ============================================ */
-        .stAlert, [data-testid="stAlert"] {{
-            background: var(--bg-card) !important;
+        .stButton > button {{
+            background: var(--bg-input) !important;
+            color: var(--text-primary) !important;
             border: 1px solid var(--border) !important;
-            border-radius: var(--radius-md) !important;
-            direction: {direction};
+            border-radius: 8px !important;
+            font-family: var(--font-main) !important;
+            font-size: 0.875rem !important;
+            padding: 0.625rem 1rem !important;
+            transition: all 0.15s ease !important;
         }}
 
-        [data-testid="stAlert"] > div {{
-            direction: {direction};
-            text-align: {text_align};
-        }}
-
-        /* Success alert */
-        [data-testid="stAlert"][data-baseweb*="positive"] {{
-            border-{text_align}: 4px solid var(--success) !important;
-        }}
-
-        /* Warning alert */
-        [data-testid="stAlert"][data-baseweb*="warning"] {{
-            border-{text_align}: 4px solid var(--accent) !important;
-        }}
-
-        /* Error alert */
-        [data-testid="stAlert"][data-baseweb*="negative"] {{
-            border-{text_align}: 4px solid var(--error) !important;
-        }}
-
-        /* Info alert */
-        [data-testid="stAlert"][data-baseweb*="info"] {{
-            border-{text_align}: 4px solid var(--info) !important;
+        .stButton > button:hover {{
+            background: var(--bg-hover) !important;
+            border-color: var(--accent) !important;
         }}
 
         /* ============================================
-           CUSTOM COMPONENTS
+           SPINNER
            ============================================ */
-        .slide-card {{
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 1rem 1.25rem;
-            margin-bottom: 0.75rem;
-            transition: all var(--transition-base);
-            direction: {direction};
+        [data-testid="stSpinner"] {{
+            color: var(--accent) !important;
         }}
 
-        .slide-card:hover {{
-            border-color: var(--accent);
-            box-shadow: var(--shadow-sm);
-        }}
-
-        .slide-number {{
-            background: var(--accent);
-            color: {"#1a202c" if not is_dark else "#1a202c"};
-            padding: 0.2rem 0.6rem;
-            border-radius: var(--radius-xs);
-            font-size: 0.75rem;
-            font-weight: 700;
-            display: inline-block;
-            margin-bottom: 0.5rem;
-        }}
-
-        .slide-title {{
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 0.35rem;
-            font-size: 0.95rem;
-        }}
-
-        .slide-badges {{
-            display: flex;
-            gap: 0.4rem;
-            margin-top: 0.6rem;
-            flex-wrap: wrap;
-            flex-direction: {"row-reverse" if is_rtl else "row"};
-        }}
-
-        .badge {{
-            background: var(--accent-subtle);
-            color: var(--accent);
-            padding: 0.2rem 0.5rem;
-            border-radius: var(--radius-xs);
-            font-size: 0.7rem;
-            font-weight: 600;
+        [data-testid="stSpinner"] > div {{
+            border-top-color: var(--accent) !important;
         }}
 
         /* ============================================
-           DIVIDER
+           ALERTS
            ============================================ */
-        hr {{
-            border: none !important;
-            height: 1px !important;
-            background: var(--border) !important;
-            margin: 1.25rem 0 !important;
+        [data-testid="stAlert"] {{
+            background: var(--bg-input) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
+            color: var(--text-secondary) !important;
         }}
 
         /* ============================================
@@ -673,7 +458,6 @@ def get_custom_css(is_dark: bool, is_rtl: bool) -> str:
            ============================================ */
         ::-webkit-scrollbar {{
             width: 6px;
-            height: 6px;
         }}
 
         ::-webkit-scrollbar-track {{
@@ -690,75 +474,80 @@ def get_custom_css(is_dark: bool, is_rtl: bool) -> str:
         }}
 
         /* ============================================
-           SPINNER
+           DIVIDER
            ============================================ */
-        [data-testid="stSpinner"] > div {{
-            border-top-color: var(--accent) !important;
+        hr {{
+            border: none !important;
+            height: 1px !important;
+            background: var(--border) !important;
+            margin: 1rem 0 !important;
         }}
 
         /* ============================================
-           ANIMATIONS
+           TEXT COLORS
            ============================================ */
-        @keyframes fadeSlideIn {{
-            from {{
-                opacity: 0;
-                transform: translateY(12px);
-            }}
-            to {{
-                opacity: 1;
-                transform: translateY(0);
-            }}
+        h1, h2, h3, h4, h5, h6 {{
+            color: var(--text-primary) !important;
+            font-family: var(--font-main) !important;
         }}
 
-        .animate-in {{
-            animation: fadeSlideIn 0.5s ease-out forwards;
+        p, span, div, label {{
+            font-family: var(--font-main) !important;
         }}
 
-        .delay-1 {{ animation-delay: 0.1s; opacity: 0; }}
-        .delay-2 {{ animation-delay: 0.2s; opacity: 0; }}
-        .delay-3 {{ animation-delay: 0.3s; opacity: 0; }}
+        /* ============================================
+           SLIDE CARDS
+           ============================================ */
+        .slide-card {{
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+        }}
+
+        .slide-number {{
+            background: var(--accent);
+            color: white;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }}
+
+        .slide-title {{
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-top: 0.375rem;
+            font-size: 0.875rem;
+        }}
+
+        .badge {{
+            background: var(--accent-soft);
+            color: var(--accent);
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-top: 0.375rem;
+            display: inline-block;
+        }}
 
         /* ============================================
            RESPONSIVE
            ============================================ */
         @media (max-width: 768px) {{
             .main .block-container {{
-                padding: 1rem !important;
+                padding: 0 0.75rem 100px 0.75rem !important;
             }}
 
-            .dashboard-header {{
-                padding: 1.5rem;
+            [data-testid="stChatInput"] {{
+                padding: 0.75rem !important;
             }}
 
-            .header-title {{
-                font-size: 1.5rem !important;
-            }}
-
-            .header-icon {{
-                width: 44px;
-                height: 44px;
-                font-size: 1.25rem;
-            }}
-
-            section[data-testid="stSidebar"] {{
-                width: 280px !important;
+            .welcome-container {{
+                padding: 2rem 0.5rem;
             }}
         }}
-
-        /* ============================================
-           RTL SPECIFIC FIXES
-           ============================================ */
-        {"" if not is_rtl else '''
-        /* Flip chevrons and arrows for RTL */
-        [data-testid="stExpander"] summary svg {
-            transform: scaleX(-1);
-        }
-
-        /* Fix select dropdown alignment */
-        .stSelectbox [data-baseweb="select"] > div {
-            flex-direction: row-reverse;
-        }
-        '''}
     </style>
     """
 
@@ -773,97 +562,62 @@ def initialize_session_state():
         st.session_state.messages = []
 
 
-def render_header(lang: str):
-    """Render the main dashboard header."""
+def render_welcome_state(lang: str):
+    """Render the welcome state when no file is uploaded."""
     t = lambda key: get_text(key, lang)
 
     st.markdown(f"""
-        <div class="dashboard-header animate-in">
-            <div class="header-content">
-                <div class="header-icon">📊</div>
-                <div class="header-text">
-                    <h1 class="header-title">{t('app_title')}</h1>
-                    <p class="header-subtitle">{t('app_subtitle')}</p>
-                </div>
-            </div>
+        <div class="welcome-container">
+            <div class="welcome-icon">📊</div>
+            <h2 class="welcome-title">{t('app_title')}</h2>
+            <p class="welcome-subtitle">{t('app_subtitle')}</p>
         </div>
     """, unsafe_allow_html=True)
 
-
-def render_welcome_cards(lang: str):
-    """Render the welcome state with step cards."""
-    t = lambda key: get_text(key, lang)
-
+    # Instruction steps
     col1, col2, col3 = st.columns(3)
 
     with col1:
         st.markdown(f"""
-            <div class="card animate-in delay-1">
-                <div class="card-title">
-                    <span class="step-number">1</span>
-                    <span>{t('step_upload')}</span>
-                </div>
-                <p class="card-description">{t('step_upload_desc')}</p>
+            <div style="text-align: center; padding: 1rem;">
+                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">1️⃣</div>
+                <div style="font-weight: 500; color: var(--text-primary);">{t('step_upload')}</div>
+                <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem;">{t('step_upload_desc')}</div>
             </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown(f"""
-            <div class="card animate-in delay-2">
-                <div class="card-title">
-                    <span class="step-number">2</span>
-                    <span>{t('step_process')}</span>
-                </div>
-                <p class="card-description">{t('step_process_desc')}</p>
+            <div style="text-align: center; padding: 1rem;">
+                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">2️⃣</div>
+                <div style="font-weight: 500; color: var(--text-primary);">{t('step_process')}</div>
+                <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem;">{t('step_process_desc')}</div>
             </div>
         """, unsafe_allow_html=True)
 
     with col3:
         st.markdown(f"""
-            <div class="card animate-in delay-3">
-                <div class="card-title">
-                    <span class="step-number">3</span>
-                    <span>{t('step_ask')}</span>
-                </div>
-                <p class="card-description">{t('step_ask_desc')}</p>
+            <div style="text-align: center; padding: 1rem;">
+                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">3️⃣</div>
+                <div style="font-weight: 500; color: var(--text-primary);">{t('step_ask')}</div>
+                <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem;">{t('step_ask_desc')}</div>
             </div>
         """, unsafe_allow_html=True)
 
 
-def render_suggested_questions(lang: str):
-    """Render AI-generated suggested questions based on uploaded content."""
+def render_chat_header(lang: str):
+    """Render minimal chat header."""
     t = lambda key: get_text(key, lang)
 
-    # Check if we have a presentation loaded
-    if not st.session_state.get('embeddings_ready', False):
-        return
+    filename = st.session_state.get('processed_file', {}).get('filename', '')
 
-    # Generate questions if not cached or language changed
-    cache_key = f"suggested_questions_{lang}"
-    if cache_key not in st.session_state:
-        try:
-            query_engine = QueryEngine()
-            questions = query_engine.generate_example_questions(num_questions=6, lang=lang)
-            st.session_state[cache_key] = questions
-        except Exception:
-            st.session_state[cache_key] = []
-
-    questions = st.session_state.get(cache_key, [])
-
-    if not questions:
-        return
-
-    st.markdown(f"### {t('suggested_questions')}")
-
-    cols = st.columns(2)
-    for i, question in enumerate(questions):
-        with cols[i % 2]:
-            if st.button(
-                f'"{question}"',
-                key=f"suggested_q_{i}",
-                use_container_width=True
-            ):
-                add_user_query(question)
+    st.markdown(f"""
+        <div class="chat-header">
+            <div class="chat-header-icon">📊</div>
+            <h3 class="chat-header-title">{t('app_title')}</h3>
+            <p class="chat-header-subtitle">{filename}</p>
+        </div>
+    """, unsafe_allow_html=True)
 
 
 def main():
@@ -875,61 +629,50 @@ def main():
     is_dark = st.session_state.dark_mode
     t = lambda key: get_text(key, lang)
 
-    # Apply custom CSS
-    st.markdown(get_custom_css(is_dark, is_rtl), unsafe_allow_html=True)
+    # Apply ChatGPT-style CSS
+    st.markdown(get_chatgpt_css(is_dark, is_rtl), unsafe_allow_html=True)
 
-    # Sidebar
+    # Sidebar - minimal settings
     with st.sidebar:
-        # Language & Theme toggles
         st.markdown(f"### {t('settings')}")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            theme_icon = "☀️" if is_dark else "🌙"
-            if st.button(theme_icon, help=t('toggle_theme'), use_container_width=True):
-                st.session_state.dark_mode = not st.session_state.dark_mode
-                st.rerun()
+        # Theme toggle
+        theme_label = "☀️ Light" if is_dark else "🌙 Dark"
+        if st.button(theme_label, use_container_width=True, key="theme_toggle"):
+            st.session_state.dark_mode = not st.session_state.dark_mode
+            st.rerun()
 
-        with col2:
-            new_lang = "ar" if lang == "en" else "en"
-            lang_label = "العربية" if lang == "en" else "English"
-            if st.button(lang_label, help=t('toggle_language'), use_container_width=True):
-                st.session_state.language = new_lang
-                st.rerun()
+        # Language toggle
+        lang_label = "العربية" if lang == "en" else "English"
+        if st.button(f"🌐 {lang_label}", use_container_width=True, key="lang_toggle"):
+            st.session_state.language = "ar" if lang == "en" else "en"
+            st.rerun()
 
         st.divider()
 
         # File upload
+        st.markdown(f"### {t('upload_title')}")
         presentation = render_upload_section(lang=lang)
 
         if presentation:
             st.divider()
             render_file_info(presentation, lang=lang)
 
+        # Clear chat button (only show if there are messages)
+        if st.session_state.messages:
+            st.divider()
+            if st.button(f"🗑️ {t('clear_chat')}", use_container_width=True, key="clear_chat"):
+                st.session_state.messages = []
+                st.rerun()
 
-    # Main content area
-    render_header(lang)
-
+    # Main content
     if st.session_state.get('processed_file'):
-        # Dashboard with chat
-        col1, col2 = st.columns([3, 2])
-
-        with col1:
-            st.markdown(f"### {t('chat_title')}")
-            render_chat_controls(lang=lang)
-            render_chat_interface(lang=lang)
-
-        with col2:
-            render_quick_actions(lang=lang)
-            st.divider()
-            render_suggested_questions(lang=lang)
-            st.divider()
-
-            if st.session_state.get('processed_file', {}).get('data'):
-                render_slide_browser(st.session_state.processed_file['data'], lang=lang)
+        # Chat mode
+        render_chat_header(lang)
+        render_chat_interface(lang=lang)
     else:
         # Welcome state
-        render_welcome_cards(lang)
+        render_welcome_state(lang)
 
 
 if __name__ == "__main__":

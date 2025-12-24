@@ -12,8 +12,17 @@ from dotenv import load_dotenv
 
 
 def load_environment():
-    """Load environment variables from .env file."""
-    # Try multiple locations
+    """Load environment variables from .env file or Streamlit secrets."""
+    # First, try to load from Streamlit secrets (for Streamlit Cloud)
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and 'ANTHROPIC_API_KEY' in st.secrets:
+            os.environ['ANTHROPIC_API_KEY'] = st.secrets['ANTHROPIC_API_KEY']
+            return True
+    except Exception:
+        pass
+
+    # Fallback to .env file (for local development)
     env_locations = [
         Path('.env'),
         Path('../.env'),
@@ -29,7 +38,16 @@ def load_environment():
 
 
 def get_api_key() -> Optional[str]:
-    """Get the Anthropic API key from environment."""
+    """Get the Anthropic API key from Streamlit secrets or environment."""
+    # Try Streamlit secrets first
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and 'ANTHROPIC_API_KEY' in st.secrets:
+            return st.secrets['ANTHROPIC_API_KEY']
+    except Exception:
+        pass
+
+    # Fallback to environment variable
     load_environment()
     return os.getenv('ANTHROPIC_API_KEY')
 
