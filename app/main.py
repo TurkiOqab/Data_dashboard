@@ -338,11 +338,40 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             padding: 1rem 1.25rem !important;
             margin-bottom: 0.75rem !important;
             direction: {direction};
+            text-align: {text_align};
+        }}
+
+        [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] {{
+            direction: {direction} !important;
+            text-align: {text_align} !important;
         }}
 
         [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] p {{
             color: var(--text-primary) !important;
-            line-height: 1.6;
+            line-height: 1.8;
+            direction: {direction} !important;
+            text-align: {text_align} !important;
+        }}
+
+        [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] ul,
+        [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] ol {{
+            direction: {direction} !important;
+            text-align: {text_align} !important;
+            padding-{"right" if is_rtl else "left"}: 1.5rem !important;
+            padding-{"left" if is_rtl else "right"}: 0 !important;
+            margin: 0.75rem 0 !important;
+        }}
+
+        [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] li {{
+            color: var(--text-primary) !important;
+            line-height: 1.8;
+            margin-bottom: 0.5rem;
+            direction: {direction} !important;
+            text-align: {text_align} !important;
+        }}
+
+        [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] li::marker {{
+            color: var(--accent) !important;
         }}
 
         /* ============================================
@@ -366,7 +395,11 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             border: 1px solid var(--border) !important;
             border-radius: 12px !important;
             box-shadow: 0 2px 12px rgba(0,0,0,0.1) !important;
-            min-height: 48px !important;
+            min-height: 52px !important;
+            display: flex !important;
+            align-items: center !important;
+            padding: 0.25rem !important;
+            gap: 0.5rem !important;
         }}
 
         [data-testid="stChatInput"] > div:focus-within {{
@@ -380,6 +413,8 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             text-align: {text_align} !important;
             min-height: 24px !important;
             padding: 0.75rem 1rem !important;
+            flex: 1 !important;
+            padding-{"left" if is_rtl else "right"}: 50px !important;
         }}
 
         [data-testid="stChatInput"] textarea::placeholder {{
@@ -390,8 +425,14 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             background: var(--accent) !important;
             border: none !important;
             border-radius: 8px !important;
-            min-width: 36px !important;
-            min-height: 36px !important;
+            min-width: 40px !important;
+            width: 40px !important;
+            height: 40px !important;
+            min-height: 40px !important;
+            flex-shrink: 0 !important;
+            position: absolute !important;
+            {"left" if is_rtl else "right"}: 0.75rem !important;
+            margin: 0 !important;
         }}
 
         [data-testid="stChatInput"] button svg {{
