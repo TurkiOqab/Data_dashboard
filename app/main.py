@@ -336,9 +336,10 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             transform: translateX(-50%) !important;
             width: 100% !important;
             max-width: 900px !important;
-            padding: 1rem !important;
-            background: linear-gradient(to top, var(--bg-main) 80%, transparent) !important;
+            padding: 1.5rem 1rem 1.5rem 1rem !important;
+            background: var(--bg-main) !important;
             z-index: 100 !important;
+            border-top: 1px solid var(--border) !important;
         }}
 
         [data-testid="stChatInput"] > div {{
@@ -346,6 +347,7 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             border: 1px solid var(--border) !important;
             border-radius: 12px !important;
             box-shadow: 0 2px 12px rgba(0,0,0,0.1) !important;
+            min-height: 48px !important;
         }}
 
         [data-testid="stChatInput"] > div:focus-within {{
@@ -357,6 +359,8 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             color: var(--text-primary) !important;
             direction: {direction} !important;
             text-align: {text_align} !important;
+            min-height: 24px !important;
+            padding: 0.75rem 1rem !important;
         }}
 
         [data-testid="stChatInput"] textarea::placeholder {{
@@ -367,6 +371,8 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             background: var(--accent) !important;
             border: none !important;
             border-radius: 8px !important;
+            min-width: 36px !important;
+            min-height: 36px !important;
         }}
 
         [data-testid="stChatInput"] button svg {{
