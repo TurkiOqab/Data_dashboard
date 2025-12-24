@@ -565,12 +565,59 @@ def render_welcome_state(lang: str):
         </div>
     """, unsafe_allow_html=True)
 
-    # Main upload area
-    st.markdown(f"### 📁 {t('upload_title')}")
-    presentation = render_upload_section(lang=lang)
+    # Main upload area - use file uploader directly to avoid duplicate title
+    uploaded_file = st.file_uploader(
+        t('upload_label'),
+        type=["pptx"],
+        help=t('upload_help'),
+        key="main_uploader"
+    )
 
-    if presentation:
-        st.rerun()
+    if uploaded_file is not None:
+        from app.services.pptx_processor import PPTXProcessor
+        from app.services.embeddings import EmbeddingsService, create_slide_embedding_content
+
+        # Check if already processed
+        if 'processed_file' not in st.session_state or st.session_state.processed_file.get('name') != uploaded_file.name:
+            with st.spinner(t('processing')):
+                try:
+                    processor = PPTXProcessor()
+                    result = processor.process_uploaded_file(uploaded_file)
+
+                    embeddings = EmbeddingsService()
+                    embeddings.clear_collection()
+
+                    slides_to_embed = []
+                    for slide in result.slides:
+                        slide_id = f"{result.filename}_slide_{slide.slide_number}"
+                        content = create_slide_embedding_content(slide.to_dict())
+                        slides_to_embed.append({
+                            'id': slide_id,
+                            'content': content,
+                            'metadata': {
+                                'filename': result.filename,
+                                'slide_number': slide.slide_number,
+                                'title': slide.title or f"{t('slide')} {slide.slide_number}",
+                                'has_chart': slide.has_chart,
+                                'has_image': slide.has_image,
+                                'has_table': len(slide.tables) > 0
+                            }
+                        })
+
+                    embeddings.add_slides_batch(slides_to_embed)
+
+                    st.session_state.processed_file = {
+                        'name': uploaded_file.name,
+                        'data': result
+                    }
+                    st.session_state.embeddings_ready = True
+                    st.session_state.messages = []
+
+                    st.success(t('upload_success').format(slides=result.total_slides, filename=result.filename))
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(t('upload_error').format(error=str(e)))
 
     # Steps below
     st.markdown("---")
@@ -609,8 +656,10 @@ def render_chat_state(lang: str):
     """Render the chat interface after file upload."""
     t = lambda key: get_text(key, lang)
 
-    filename = st.session_state.get('processed_file', {}).get('filename', '')
-    slide_count = st.session_state.get('processed_file', {}).get('data', {}).get('total_slides', 0)
+    file_data = st.session_state.get('processed_file', {})
+    filename = file_data.get('name', '')
+    presentation = file_data.get('data')
+    slide_count = presentation.total_slides if presentation else 0
 
     # Chat header with file info
     st.markdown(f"""
@@ -657,10 +706,12 @@ def main():
         if st.session_state.get('processed_file'):
             st.divider()
             file_data = st.session_state.processed_file
+            presentation = file_data.get('data')
+            slide_count = presentation.total_slides if presentation else 0
             st.markdown(f"""
                 <div class="file-info">
-                    <div class="file-info-name">📄 {file_data.get('filename', '')}</div>
-                    <div class="file-info-detail">{file_data.get('data', {}).get('total_slides', 0)} {t('slides')}</div>
+                    <div class="file-info-name">📄 {file_data.get('name', '')}</div>
+                    <div class="file-info-detail">{slide_count} {t('slides')}</div>
                 </div>
             """, unsafe_allow_html=True)
 
