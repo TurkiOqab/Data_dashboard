@@ -31,8 +31,8 @@ TRANSLATIONS = {
 
         # Upload Section
         'upload_title': 'Upload Presentation',
-        'upload_label': 'Drag and drop a PowerPoint file',
-        'upload_help': 'Upload a .pptx file to analyze its contents',
+        'upload_label': 'Drag and drop a file (PowerPoint or PDF)',
+        'upload_help': 'Upload a .pptx or .pdf file to analyze its contents',
         'upload_success': 'Processed {slides} slides from {filename}',
         'upload_loaded': 'Currently loaded: {filename}',
         'upload_error': 'Error processing file: {error}',
@@ -108,8 +108,8 @@ TRANSLATIONS = {
 
         # Upload Section
         'upload_title': 'رفع العرض التقديمي',
-        'upload_label': 'اسحب وأفلت ملف PowerPoint',
-        'upload_help': 'ارفع ملف .pptx لتحليل محتواه',
+        'upload_label': 'اسحب وأفلت ملف (PowerPoint أو PDF)',
+        'upload_help': 'ارفع ملف .pptx أو .pdf لتحليل محتواه',
         'upload_success': 'تمت معالجة {slides} شريحة من {filename}',
         'upload_loaded': 'محمّل حالياً: {filename}',
         'upload_error': 'خطأ في معالجة الملف: {error}',

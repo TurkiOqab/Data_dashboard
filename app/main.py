@@ -12,7 +12,6 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.components.upload import render_upload_section, render_file_info
 from app.components.chat import render_chat_interface
 from app.utils.helpers import load_environment
 from app.utils.translations import get_text
@@ -20,25 +19,26 @@ from app.utils.translations import get_text
 # Load environment variables
 load_environment()
 
-# Page configuration
+# Page configuration - no sidebar
 st.set_page_config(
     page_title="Data Dashboard | لوحة البيانات",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 
 def get_app_css(is_dark: bool, is_rtl: bool) -> str:
-    """Generate application CSS."""
+    """Generate application CSS with top navbar."""
 
     direction = "rtl" if is_rtl else "ltr"
     text_align = "right" if is_rtl else "left"
+    flex_dir = "row-reverse" if is_rtl else "row"
 
     if is_dark:
         colors = {
             'bg_main': '#1a1a1a',
-            'bg_secondary': '#242424',
+            'bg_navbar': '#242424',
             'bg_card': '#2d2d2d',
             'bg_hover': '#363636',
             'text_primary': '#ffffff',
@@ -52,7 +52,7 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
     else:
         colors = {
             'bg_main': '#ffffff',
-            'bg_secondary': '#f7f7f8',
+            'bg_navbar': '#f7f7f8',
             'bg_card': '#ffffff',
             'bg_hover': '#f0f0f0',
             'text_primary': '#1a1a1a',
@@ -76,7 +76,7 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
            ============================================ */
         :root {{
             --bg-main: {colors['bg_main']};
-            --bg-secondary: {colors['bg_secondary']};
+            --bg-navbar: {colors['bg_navbar']};
             --bg-card: {colors['bg_card']};
             --bg-hover: {colors['bg_hover']};
             --text-primary: {colors['text_primary']};
@@ -96,7 +96,11 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             background: var(--bg-main) !important;
         }}
 
-        #MainMenu, footer {{
+        /* Hide Streamlit elements */
+        #MainMenu, footer, header[data-testid="stHeader"],
+        section[data-testid="stSidebar"],
+        [data-testid="stSidebarCollapsedControl"],
+        [data-testid="collapsedControl"] {{
             display: none !important;
         }}
 
@@ -115,26 +119,105 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
         }}
 
         /* ============================================
+           TOP NAVBAR
+           ============================================ */
+        .navbar {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: var(--bg-navbar);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            z-index: 1000;
+            flex-direction: {flex_dir};
+        }}
+
+        .navbar-brand {{
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-direction: {flex_dir};
+        }}
+
+        .navbar-logo {{
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }}
+
+        .navbar-title {{
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }}
+
+        .navbar-actions {{
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-direction: {flex_dir};
+        }}
+
+        .nav-btn {{
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: var(--font-main);
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }}
+
+        .nav-btn:hover {{
+            background: var(--bg-hover);
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }}
+
+        .nav-btn.active {{
+            background: var(--accent-soft);
+            border-color: var(--accent);
+            color: var(--accent);
+        }}
+
+        /* File indicator in navbar */
+        .nav-file {{
+            background: var(--accent-soft);
+            border: 1px solid var(--accent);
+            border-radius: 2rem;
+            padding: 0.375rem 0.875rem;
+            font-size: 0.8rem;
+            color: var(--accent);
+            font-weight: 500;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
+
+        /* ============================================
            MAIN CONTAINER
            ============================================ */
         .main .block-container {{
             max-width: 900px !important;
-            padding: 2rem 1rem 120px 1rem !important;
+            padding: 80px 1rem 120px 1rem !important;
             margin: 0 auto !important;
-        }}
-
-        /* ============================================
-           SIDEBAR
-           ============================================ */
-        section[data-testid="stSidebar"] {{
-            background: var(--bg-secondary) !important;
-            border-{"left" if is_rtl else "right"}: 1px solid var(--border) !important;
-            width: 280px !important;
-        }}
-
-        section[data-testid="stSidebar"] > div {{
-            padding: 1.5rem 1rem !important;
-            direction: {direction};
         }}
 
         /* ============================================
@@ -142,84 +225,47 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
            ============================================ */
         .app-header {{
             text-align: center;
-            padding: 2rem 0 1rem;
+            padding: 2rem 0 1.5rem;
         }}
 
         .app-logo {{
-            width: 64px;
-            height: 64px;
+            width: 72px;
+            height: 72px;
             background: linear-gradient(135deg, var(--accent), var(--accent-hover));
             border-radius: 16px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
+            font-size: 2.5rem;
             margin-bottom: 1rem;
             box-shadow: 0 4px 20px var(--accent-soft);
         }}
 
         .app-title {{
-            font-size: 1.75rem !important;
+            font-size: 2rem !important;
             font-weight: 600 !important;
             color: var(--text-primary) !important;
             margin: 0 0 0.5rem 0 !important;
         }}
 
         .app-subtitle {{
-            font-size: 1rem;
+            font-size: 1.125rem;
             color: var(--text-muted);
             margin: 0;
         }}
 
         /* ============================================
-           UPLOAD ZONE - Main Feature
+           UPLOAD ZONE
            ============================================ */
-        .upload-section {{
-            margin: 2rem 0;
-        }}
-
-        .upload-zone {{
-            background: var(--bg-card);
-            border: 2px dashed var(--border);
-            border-radius: 16px;
-            padding: 3rem 2rem;
-            text-align: center;
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }}
-
-        .upload-zone:hover {{
-            border-color: var(--accent);
-            background: var(--accent-soft);
-        }}
-
-        .upload-icon {{
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }}
-
-        .upload-text {{
-            font-size: 1.125rem;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-        }}
-
-        .upload-hint {{
-            font-size: 0.875rem;
-            color: var(--text-muted);
-        }}
-
-        /* Style Streamlit's file uploader */
         [data-testid="stFileUploader"] {{
-            margin-top: 1rem;
+            margin-top: 1.5rem;
         }}
 
         [data-testid="stFileUploader"] > div:first-child {{
             background: var(--bg-card) !important;
             border: 2px dashed var(--border) !important;
-            border-radius: 12px !important;
-            padding: 2rem !important;
+            border-radius: 16px !important;
+            padding: 2.5rem !important;
             transition: all 0.2s ease !important;
         }}
 
@@ -238,15 +284,8 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
         }}
 
         /* ============================================
-           STEPS
+           STEP CARDS
            ============================================ */
-        .steps-container {{
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            margin: 2rem 0;
-        }}
-
         .step-card {{
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -263,8 +302,8 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
         }}
 
         .step-number {{
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             background: var(--accent);
             color: white;
             border-radius: 50%;
@@ -272,6 +311,7 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             align-items: center;
             justify-content: center;
             font-weight: 600;
+            font-size: 1rem;
             margin-bottom: 0.75rem;
         }}
 
@@ -279,34 +319,13 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             font-weight: 600;
             color: var(--text-primary);
             margin-bottom: 0.5rem;
+            font-size: 1rem;
         }}
 
         .step-desc {{
             font-size: 0.875rem;
             color: var(--text-muted);
             line-height: 1.5;
-        }}
-
-        /* ============================================
-           CHAT HEADER
-           ============================================ */
-        .chat-header {{
-            text-align: center;
-            padding: 1.5rem 0;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 1rem;
-        }}
-
-        .chat-file-name {{
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: var(--accent-soft);
-            color: var(--accent);
-            padding: 0.5rem 1rem;
-            border-radius: 2rem;
-            font-size: 0.875rem;
-            font-weight: 500;
         }}
 
         /* ============================================
@@ -336,7 +355,7 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             transform: translateX(-50%) !important;
             width: 100% !important;
             max-width: 900px !important;
-            padding: 1.5rem 1rem 1.5rem 1rem !important;
+            padding: 1.5rem 1rem !important;
             background: var(--bg-main) !important;
             z-index: 100 !important;
             border-top: 1px solid var(--border) !important;
@@ -389,8 +408,9 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             border-radius: 8px !important;
             font-family: var(--font-main) !important;
             font-size: 0.875rem !important;
-            padding: 0.625rem 1rem !important;
+            padding: 0.5rem 1rem !important;
             transition: all 0.15s ease !important;
+            min-height: 38px !important;
         }}
 
         .stButton > button:hover {{
@@ -398,19 +418,8 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             border-color: var(--accent) !important;
         }}
 
-        /* Primary button style */
-        .primary-btn > button {{
-            background: var(--accent) !important;
-            color: white !important;
-            border: none !important;
-        }}
-
-        .primary-btn > button:hover {{
-            background: var(--accent-hover) !important;
-        }}
-
         /* ============================================
-           EXPANDER
+           EXPANDER & ALERTS
            ============================================ */
         [data-testid="stExpander"] {{
             background: var(--bg-card) !important;
@@ -423,9 +432,6 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
             font-size: 0.875rem !important;
         }}
 
-        /* ============================================
-           ALERTS
-           ============================================ */
         [data-testid="stAlert"] {{
             background: var(--bg-card) !important;
             border: 1px solid var(--border) !important;
@@ -433,27 +439,24 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
         }}
 
         /* ============================================
-           SPINNER
+           SPINNER & DIVIDER
            ============================================ */
         [data-testid="stSpinner"] > div {{
             border-top-color: var(--accent) !important;
         }}
 
-        /* ============================================
-           DIVIDER
-           ============================================ */
         hr {{
             border: none !important;
             height: 1px !important;
             background: var(--border) !important;
-            margin: 1rem 0 !important;
+            margin: 1.5rem 0 !important;
         }}
 
         /* ============================================
            SLIDE CARDS
            ============================================ */
         .slide-card {{
-            background: var(--bg-secondary);
+            background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 8px;
             padding: 0.75rem 1rem;
@@ -487,28 +490,6 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
         }}
 
         /* ============================================
-           FILE INFO
-           ============================================ */
-        .file-info {{
-            background: var(--accent-soft);
-            border-radius: 8px;
-            padding: 1rem;
-            margin: 1rem 0;
-        }}
-
-        .file-info-name {{
-            color: var(--text-primary);
-            font-weight: 600;
-            font-size: 0.9rem;
-            margin-bottom: 0.25rem;
-        }}
-
-        .file-info-detail {{
-            color: var(--text-muted);
-            font-size: 0.8rem;
-        }}
-
-        /* ============================================
            SCROLLBAR
            ============================================ */
         ::-webkit-scrollbar {{
@@ -532,20 +513,59 @@ def get_app_css(is_dark: bool, is_rtl: bool) -> str:
            RESPONSIVE
            ============================================ */
         @media (max-width: 768px) {{
+            .navbar {{
+                padding: 0 1rem;
+            }}
+
+            .navbar-title {{
+                display: none;
+            }}
+
+            .nav-file {{
+                max-width: 120px;
+            }}
+
             .main .block-container {{
-                padding: 1rem 0.75rem 120px 0.75rem !important;
-            }}
-
-            .steps-container {{
-                grid-template-columns: 1fr;
-            }}
-
-            [data-testid="stChatInput"] {{
-                padding: 0.75rem !important;
+                padding: 70px 0.75rem 120px 0.75rem !important;
             }}
         }}
     </style>
     """
+
+
+def render_navbar(lang: str, is_dark: bool, has_file: bool = False, filename: str = ""):
+    """Render the top navigation bar."""
+    t = lambda key: get_text(key, lang)
+
+    # Navbar HTML with buttons that will be handled by Streamlit
+    file_indicator = f'<span class="nav-file">📄 {filename[:20]}{"..." if len(filename) > 20 else ""}</span>' if has_file else ""
+
+    st.markdown(f"""
+        <div class="navbar">
+            <div class="navbar-brand">
+                <div class="navbar-logo">📊</div>
+                <span class="navbar-title">{t('app_title')}</span>
+            </div>
+            <div class="navbar-actions">
+                {file_indicator}
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Settings row below navbar (using Streamlit buttons)
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+
+    with col2:
+        theme_label = "☀️ Light" if is_dark else "🌙 Dark"
+        if st.button(theme_label, key="theme_btn", use_container_width=True):
+            st.session_state.dark_mode = not is_dark
+            st.rerun()
+
+    with col3:
+        lang_label = "العربية" if lang == "en" else "English"
+        if st.button(f"🌐 {lang_label}", key="lang_btn", use_container_width=True):
+            st.session_state.language = "ar" if lang == "en" else "en"
+            st.rerun()
 
 
 def initialize_session_state():
@@ -571,61 +591,95 @@ def render_welcome_state(lang: str):
         </div>
     """, unsafe_allow_html=True)
 
-    # Main upload area - use file uploader directly to avoid duplicate title
+    # File uploader - supports PPTX and PDF
     uploaded_file = st.file_uploader(
         t('upload_label'),
-        type=["pptx"],
+        type=["pptx", "pdf"],
         help=t('upload_help'),
         key="main_uploader"
     )
 
     if uploaded_file is not None:
-        from app.services.pptx_processor import PPTXProcessor
-        from app.services.embeddings import EmbeddingsService, create_slide_embedding_content
+        from app.services.embeddings import EmbeddingsService
 
-        # Check if already processed
         if 'processed_file' not in st.session_state or st.session_state.processed_file.get('name') != uploaded_file.name:
             with st.spinner(t('processing')):
                 try:
-                    processor = PPTXProcessor()
-                    result = processor.process_uploaded_file(uploaded_file)
+                    file_ext = uploaded_file.name.lower().split('.')[-1]
 
                     embeddings = EmbeddingsService()
                     embeddings.clear_collection()
 
-                    slides_to_embed = []
-                    for slide in result.slides:
-                        slide_id = f"{result.filename}_slide_{slide.slide_number}"
-                        content = create_slide_embedding_content(slide.to_dict())
-                        slides_to_embed.append({
-                            'id': slide_id,
-                            'content': content,
-                            'metadata': {
-                                'filename': result.filename,
-                                'slide_number': slide.slide_number,
-                                'title': slide.title or f"{t('slide')} {slide.slide_number}",
-                                'has_chart': slide.has_chart,
-                                'has_image': slide.has_image,
-                                'has_table': len(slide.tables) > 0
-                            }
-                        })
+                    if file_ext == 'pptx':
+                        # Process PowerPoint
+                        from app.services.pptx_processor import PPTXProcessor
+                        from app.services.embeddings import create_slide_embedding_content
 
-                    embeddings.add_slides_batch(slides_to_embed)
+                        processor = PPTXProcessor()
+                        result = processor.process_uploaded_file(uploaded_file)
+
+                        slides_to_embed = []
+                        for slide in result.slides:
+                            slide_id = f"{result.filename}_slide_{slide.slide_number}"
+                            content = create_slide_embedding_content(slide.to_dict())
+                            slides_to_embed.append({
+                                'id': slide_id,
+                                'content': content,
+                                'metadata': {
+                                    'filename': result.filename,
+                                    'slide_number': slide.slide_number,
+                                    'title': slide.title or f"{t('slide')} {slide.slide_number}",
+                                    'has_chart': slide.has_chart,
+                                    'has_image': slide.has_image,
+                                    'has_table': len(slide.tables) > 0
+                                }
+                            })
+
+                        embeddings.add_slides_batch(slides_to_embed)
+                        total_items = result.total_slides
+
+                    elif file_ext == 'pdf':
+                        # Process PDF
+                        from app.services.pdf_processor import PDFProcessor, create_page_embedding_content
+
+                        processor = PDFProcessor()
+                        result = processor.process_uploaded_file(uploaded_file)
+
+                        pages_to_embed = []
+                        for page in result.pages:
+                            page_id = f"{result.filename}_page_{page.page_number}"
+                            content = create_page_embedding_content(page.to_dict())
+                            pages_to_embed.append({
+                                'id': page_id,
+                                'content': content,
+                                'metadata': {
+                                    'filename': result.filename,
+                                    'slide_number': page.page_number,  # Use slide_number for consistency
+                                    'title': page.title or f"Page {page.page_number}",
+                                    'has_chart': False,
+                                    'has_image': False,
+                                    'has_table': len(page.tables) > 0
+                                }
+                            })
+
+                        embeddings.add_slides_batch(pages_to_embed)
+                        total_items = result.total_pages
 
                     st.session_state.processed_file = {
                         'name': uploaded_file.name,
-                        'data': result
+                        'data': result,
+                        'type': file_ext
                     }
                     st.session_state.embeddings_ready = True
                     st.session_state.messages = []
 
-                    st.success(t('upload_success').format(slides=result.total_slides, filename=result.filename))
+                    st.success(t('upload_success').format(slides=total_items, filename=uploaded_file.name))
                     st.rerun()
 
                 except Exception as e:
                     st.error(t('upload_error').format(error=str(e)))
 
-    # Steps below
+    # Steps
     st.markdown("---")
 
     col1, col2, col3 = st.columns(3)
@@ -664,15 +718,35 @@ def render_chat_state(lang: str):
 
     file_data = st.session_state.get('processed_file', {})
     filename = file_data.get('name', '')
-    presentation = file_data.get('data')
-    slide_count = presentation.total_slides if presentation else 0
+    file_type = file_data.get('type', 'pptx')
+    data = file_data.get('data')
 
-    # Chat header with file info
-    st.markdown(f"""
-        <div class="chat-header">
-            <span class="chat-file-name">📄 {filename} • {slide_count} {t('slides')}</span>
-        </div>
-    """, unsafe_allow_html=True)
+    # Get page/slide count based on file type
+    if file_type == 'pdf':
+        slide_count = data.total_pages if data else 0
+    else:
+        slide_count = data.total_slides if data else 0
+
+    # Action buttons
+    col1, col2, col3 = st.columns([1, 1, 2])
+
+    with col1:
+        if st.button("📄 " + filename[:15] + "...", key="file_info", use_container_width=True):
+            pass  # Could show file details
+
+    with col2:
+        if st.button(f"🗑️ {t('clear_chat')}", key="clear_chat", use_container_width=True):
+            st.session_state.messages = []
+            st.rerun()
+
+    with col3:
+        if st.button("📤 Upload New", key="new_upload", use_container_width=True):
+            st.session_state.processed_file = None
+            st.session_state.embeddings_ready = False
+            st.session_state.messages = []
+            st.rerun()
+
+    st.markdown("---")
 
     # Chat interface
     render_chat_interface(lang=lang)
@@ -687,56 +761,18 @@ def main():
     is_dark = st.session_state.dark_mode
     t = lambda key: get_text(key, lang)
 
+    # Get file info
+    has_file = st.session_state.get('processed_file') is not None
+    filename = st.session_state.get('processed_file', {}).get('name', '') if has_file else ""
+
     # Apply CSS
     st.markdown(get_app_css(is_dark, is_rtl), unsafe_allow_html=True)
 
-    # Sidebar
-    with st.sidebar:
-        st.markdown(f"### ⚙️ {t('settings')}")
-
-        # Theme toggle
-        col1, col2 = st.columns(2)
-        with col1:
-            theme_icon = "☀️" if is_dark else "🌙"
-            if st.button(theme_icon, use_container_width=True, key="theme_toggle", help=t('toggle_theme')):
-                st.session_state.dark_mode = not st.session_state.dark_mode
-                st.rerun()
-
-        with col2:
-            lang_label = "ع" if lang == "en" else "En"
-            if st.button(lang_label, use_container_width=True, key="lang_toggle", help=t('toggle_language')):
-                st.session_state.language = "ar" if lang == "en" else "en"
-                st.rerun()
-
-        # Show file info if uploaded
-        if st.session_state.get('processed_file'):
-            st.divider()
-            file_data = st.session_state.processed_file
-            presentation = file_data.get('data')
-            slide_count = presentation.total_slides if presentation else 0
-            st.markdown(f"""
-                <div class="file-info">
-                    <div class="file-info-name">📄 {file_data.get('name', '')}</div>
-                    <div class="file-info-detail">{slide_count} {t('slides')}</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-            # Upload new file option
-            st.markdown(f"#### {t('upload_title')}")
-            new_presentation = render_upload_section(lang=lang)
-            if new_presentation:
-                st.session_state.messages = []
-                st.rerun()
-
-            # Clear chat
-            if st.session_state.messages:
-                st.divider()
-                if st.button(f"🗑️ {t('clear_chat')}", use_container_width=True, key="clear_chat"):
-                    st.session_state.messages = []
-                    st.rerun()
+    # Render navbar
+    render_navbar(lang, is_dark, has_file, filename)
 
     # Main content
-    if st.session_state.get('processed_file'):
+    if has_file:
         render_chat_state(lang)
     else:
         render_welcome_state(lang)
